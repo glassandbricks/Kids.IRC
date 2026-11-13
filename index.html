@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Custom IRC</title>
+  <style>
+    /* Write your own custom CSS here */
+    body { background: #121212; color: #e0e0e0; font-family: monospace; margin: 20px; }
+    #chat-box { height: 400px; border: 1px solid #333; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+    input, button { background: #1e1e1e; color: #fff; border: 1px solid #444; padding: 8px; }
+    #msg-input { width: 70%; }
+  </style>
+</head>
+<body>
+
+  <div>
+    <input type="text" id="nick-input" placeholder="Nickname" value="Player1">
+    <input type="text" id="chan-input" placeholder="#channel" value="#my-secret-room-882">
+    <button id="connect-btn">Connect</button>
+  </div>
+  <br>
+  <div id="chat-box"></div>
+  <div>
+    <input type="text" id="msg-input" placeholder="Type a message..." disabled>
+    <button id="send-btn" disabled>Send</button>
+  </div>
+
+  <script>
+    let socket;
+    let currentChannel = "";
+    let myNick = "";
+
+    const chatBox = document.getElementById("chat-box");
+    const msgInput = document.getElementById("msg-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    // Helper to print lines to your screen
+    function logMessage(text) {
+      const line = document.createElement("div");
+      line.textContent = text;
+      chatBox.appendChild(line);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Helper to send raw IRC commands
+    function sendRaw(cmd) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(cmd + "\r\n");
+      }
+    }
+
+    document.getElementById("connect-btn").addEventListener("click", () => {
+      myNick = document.getElementById("nick-input").value.trim();
+      currentChannel = document.getElementById("chan-input").value.trim();
+
+      // Connect to a public WebSocket IRC gateway
+      socket = new WebSocket("wss://testnet.ergo.chat/webirc");
+
+      socket.onopen = () => {
+        logMessage("* Connected to server...");
+        sendRaw(`NICK ${myNick}`);
+        sendRaw(`USER ${myNick} 0 * :Web IRC User`);
+      };
+
+      socket.onmessage = (event) => {
+        // Servers sometimes send multiple lines in one packet
+        const lines = event.data.split("\r\n");
+        
+        lines.forEach(line => {
+          if (!line) return;
+
+          // 1. Respond to server PINGs to stay connected
+          if (line.startsWith("PING")) {
+            const payload = line.split(" ")[1];
+            sendRaw(`PONG ${payload}`);
+            return;
+          }
+
+          // 2. Code 001 means welcome/registered -> Now join the channel
+          if (line.includes(" 001 ")) {
+            logMessage("* Registered! Joining " + currentChannel);
+            sendRaw(`JOIN ${currentChannel}`);
+            msgInput.disabled = false;
+            sendBtn.disabled = false;
+          }
+
+          // 3. Parse incoming chat messages (PRIVMSG)
+          if (line.includes(" PRIVMSG ")) {
+            const sender = line.split("!")[0].substring(1);
+            const message = line.split(" :")[1];
+            logMessage(`<${sender}> ${message}`);
+          }
+        });
+      };
+
+      socket.onclose = () => {
+        logMessage("* Disconnected from server.");
+        msgInput.disabled = true;
+        sendBtn.disabled = true;
+      };
+    });
+
+    function sendChat() {
+      const text = msgInput.value;
+      if (!text) return;
+      sendRaw(`PRIVMSG ${currentChannel} :${text}`);
+      logMessage(`<${myNick}> ${text}`);
+      msgInput.value = "";
+    }
+
+    sendBtn.addEventListener("click", sendChat);
+    msgInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendChat();
+    });
+  </script>
+</body>
+</html>
