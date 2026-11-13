@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kids.IRC - User Data</title>
+
+<style>
+body {
+    background: white;
+    color: black;
+    font-family: "Times New Roman", serif;
+    margin: 8px;
+}
+
+h1 { font-size: 24px; }
+
+pre {
+    font-family: monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Kids.IRC User Data</h1>
+
+<p>Registered usernames on this browser:</p>
+
+<pre id="userData">Loading...</pre>
+
+<script>
+let users = JSON.parse(localStorage.getItem("kidsirc_users") || "{}");
+
+let output = Object.values(users).map(user =>
+    "username: " + user.username
+).join("\n");
+
+document.getElementById("userData").textContent =
+    output || "No registered users.";
+</script>
+
+</body>
+</html>
