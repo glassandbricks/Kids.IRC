@@ -1,117 +1,323 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>My Custom IRC</title>
-  <style>
-    /* Write your own custom CSS here */
-    body { background: #121212; color: #e0e0e0; font-family: monospace; margin: 20px; }
-    #chat-box { height: 400px; border: 1px solid #333; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-    input, button { background: #1e1e1e; color: #fff; border: 1px solid #444; padding: 8px; }
-    #msg-input { width: 70%; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kids.IRC - Chatroom</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #c5c5c5;
+    font-family: Tahoma, Arial, sans-serif;
+    color: #222;
+    font-size: 13px;
+}
+
+header {
+    background: linear-gradient(#3976a9, #16436d);
+    color: white;
+    padding: 18px;
+    border-bottom: 3px solid #0d2942;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header span { color: #a9e5ff; }
+
+.container {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+}
+
+.sidebar {
+    width: 210px;
+    flex-shrink: 0;
+    background: #eee;
+    border: 1px solid #999;
+    padding: 10px;
+}
+
+.sidebar h3 {
+    background: #316b9a;
+    color: white;
+    padding: 8px;
+}
+
+.sidebar a {
+    display: block;
+    padding: 9px;
+    color: #174f7d;
+    text-decoration: none;
+    border-bottom: 1px solid #ddd;
+}
+
+.sidebar a:hover {
+    background: #d5eaff;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+    background: white;
+    border: 1px solid #999;
+    padding: 15px;
+    min-height: 500px;
+}
+
+.title {
+    background: #316b9a;
+    color: white;
+    padding: 10px;
+}
+
+.login {
+    max-width: 350px;
+    margin: 35px auto;
+    padding: 20px;
+    background: #eee;
+    border: 1px solid #999;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin: 7px 0;
+    border: 1px solid #999;
+}
+
+button {
+    background: #28618f;
+    color: white;
+    border: 1px solid #17446b;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+button:hover { background: #17446b; }
+
+#chatroom { display: none; }
+
+.chat {
+    background: white;
+    border: 1px solid #888;
+    height: 350px;
+    padding: 10px;
+    overflow-y: auto;
+    font-family: monospace;
+}
+
+.message { margin: 8px 0; }
+
+.username {
+    color: #145b99;
+    font-weight: bold;
+}
+
+.chatbar {
+    display: flex;
+    gap: 5px;
+}
+
+.chatbar input { flex: 1; }
+
+footer {
+    background: #16436d;
+    color: white;
+    text-align: center;
+    padding: 12px;
+    margin-top: 15px;
+}
+
+@media(max-width: 650px) {
+    .container { flex-direction: column; }
+    .sidebar { width: 100%; }
+}
+</style>
 </head>
+
 <body>
 
-  <div>
-    <input type="text" id="nick-input" placeholder="Nickname" value="Player1">
-    <input type="text" id="chan-input" placeholder="#channel" value="#my-secret-room-882">
-    <button id="connect-btn">Connect</button>
-  </div>
-  <br>
-  <div id="chat-box"></div>
-  <div>
-    <input type="text" id="msg-input" placeholder="Type a message..." disabled>
-    <button id="send-btn" disabled>Send</button>
-  </div>
+<header>
+    <h1>Kids<span>.IRC</span></h1>
+    <p>Your internet hangout!</p>
+</header>
 
-  <script>
-    let socket;
-    let currentChannel = "";
-    let myNick = "";
+<div class="container">
 
-    const chatBox = document.getElementById("chat-box");
-    const msgInput = document.getElementById("msg-input");
-    const sendBtn = document.getElementById("send-btn");
+    <aside class="sidebar">
+        <h3>Navigation</h3>
+        <a href="#" onclick="showLogin()">Home</a>
+        <a href="#" onclick="showChat()">Chatroom</a>
+        <a href="userdata.html">User Data</a>
 
-    // Helper to print lines to your screen
-    function logMessage(text) {
-      const line = document.createElement("div");
-      line.textContent = text;
-      chatBox.appendChild(line);
-      chatBox.scrollTop = chatBox.scrollHeight;
+        <h3>Channels</h3>
+        <a href="#" onclick="changeChannel('general')">#general</a>
+        <a href="#" onclick="changeChannel('random')">#random</a>
+        <a href="#" onclick="changeChannel('games')">#games</a>
+
+        <h3>Account</h3>
+        <p id="accountStatus">Not logged in</p>
+        <button onclick="logout()">Log out</button>
+    </aside>
+
+    <main class="content">
+
+        <section id="loginScreen">
+            <h2 class="title">Welcome to Kids.IRC!</h2>
+
+            <div class="login">
+                <h2>Login / Register</h2>
+
+                <input id="username" placeholder="Username" maxlength="20">
+                <input id="password" type="password" placeholder="Password">
+
+                <button onclick="register()">Create Account</button>
+                <button onclick="login()">Login</button>
+
+                <p id="status"></p>
+            </div>
+        </section>
+
+        <section id="chatroom">
+            <h2 class="title" id="channelTitle">#general</h2>
+
+            <p>Welcome to Kids.IRC, <b id="welcomeName"></b>!</p>
+
+            <div class="chat" id="messages">
+                <div class="message">
+                    <span class="username">Server:</span>
+                    Welcome to Kids.IRC!
+                </div>
+            </div>
+
+            <div class="chatbar">
+                <input id="chatInput" placeholder="Write a message..."
+                onkeydown="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<footer>
+    Kids.IRC &copy; 2026 - Have fun chatting!
+</footer>
+
+<script>
+let currentUser = null;
+let channel = "general";
+
+// DEMO ONLY: local browser storage.
+// Replace with a secure backend for real accounts.
+
+function register() {
+    let name = document.getElementById("username").value.trim();
+    let pass = document.getElementById("password").value;
+
+    if (!name || !pass) {
+        statusText("Enter a username and password!");
+        return;
     }
 
-    // Helper to send raw IRC commands
-    function sendRaw(cmd) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(cmd + "\r\n");
-      }
+    let users = JSON.parse(localStorage.getItem("kidsirc_users") || "{}");
+
+    if (users[name.toLowerCase()]) {
+        statusText("That username already exists!");
+        return;
     }
 
-    document.getElementById("connect-btn").addEventListener("click", () => {
-      myNick = document.getElementById("nick-input").value.trim();
-      currentChannel = document.getElementById("chan-input").value.trim();
+    // Demo only. Passwords are NOT secure in localStorage.
+    users[name.toLowerCase()] = {
+        username: name,
+        password: pass
+    };
 
-      // Connect to a public WebSocket IRC gateway
-      socket = new WebSocket("wss://testnet.ergo.chat/webirc");
+    localStorage.setItem("kidsirc_users", JSON.stringify(users));
 
-      socket.onopen = () => {
-        logMessage("* Connected to server...");
-        sendRaw(`NICK ${myNick}`);
-        sendRaw(`USER ${myNick} 0 * :Web IRC User`);
-      };
+    statusText("Account created! You can now log in.");
+}
 
-      socket.onmessage = (event) => {
-        // Servers sometimes send multiple lines in one packet
-        const lines = event.data.split("\r\n");
-        
-        lines.forEach(line => {
-          if (!line) return;
+function login() {
+    let name = document.getElementById("username").value.trim();
+    let pass = document.getElementById("password").value;
 
-          // 1. Respond to server PINGs to stay connected
-          if (line.startsWith("PING")) {
-            const payload = line.split(" ")[1];
-            sendRaw(`PONG ${payload}`);
-            return;
-          }
+    let users = JSON.parse(localStorage.getItem("kidsirc_users") || "{}");
+    let user = users[name.toLowerCase()];
 
-          // 2. Code 001 means welcome/registered -> Now join the channel
-          if (line.includes(" 001 ")) {
-            logMessage("* Registered! Joining " + currentChannel);
-            sendRaw(`JOIN ${currentChannel}`);
-            msgInput.disabled = false;
-            sendBtn.disabled = false;
-          }
-
-          // 3. Parse incoming chat messages (PRIVMSG)
-          if (line.includes(" PRIVMSG ")) {
-            const sender = line.split("!")[0].substring(1);
-            const message = line.split(" :")[1];
-            logMessage(`<${sender}> ${message}`);
-          }
-        });
-      };
-
-      socket.onclose = () => {
-        logMessage("* Disconnected from server.");
-        msgInput.disabled = true;
-        sendBtn.disabled = true;
-      };
-    });
-
-    function sendChat() {
-      const text = msgInput.value;
-      if (!text) return;
-      sendRaw(`PRIVMSG ${currentChannel} :${text}`);
-      logMessage(`<${myNick}> ${text}`);
-      msgInput.value = "";
+    if (!user || user.password !== pass) {
+        statusText("Incorrect username or password!");
+        return;
     }
 
-    sendBtn.addEventListener("click", sendChat);
-    msgInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendChat();
-    });
-  </script>
+    currentUser = user.username;
+    showChat();
+}
+
+function showChat() {
+    if (!currentUser) return;
+
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("chatroom").style.display = "block";
+    document.getElementById("welcomeName").textContent = currentUser;
+    document.getElementById("accountStatus").textContent = currentUser;
+}
+
+function showLogin() {
+    document.getElementById("chatroom").style.display = "none";
+    document.getElementById("loginScreen").style.display = "block";
+}
+
+function logout() {
+    currentUser = null;
+    document.getElementById("accountStatus").textContent = "Not logged in";
+    showLogin();
+}
+
+function statusText(text) {
+    document.getElementById("status").textContent = text;
+}
+
+function changeChannel(name) {
+    channel = name;
+    document.getElementById("channelTitle").textContent = "#" + name;
+    document.getElementById("messages").innerHTML =
+        '<div class="message"><b>Server:</b> Welcome to #' + name + '!</div>';
+}
+
+function sendMessage() {
+    if (!currentUser) return;
+
+    let input = document.getElementById("chatInput");
+    let message = input.value.trim();
+
+    if (!message) return;
+
+    let div = document.createElement("div");
+    div.className = "message";
+
+    let username = document.createElement("span");
+    username.className = "username";
+    username.textContent = currentUser + ": ";
+
+    div.appendChild(username);
+    div.appendChild(document.createTextNode(message));
+
+    document.getElementById("messages").appendChild(div);
+    input.value = "";
+
+    let chat = document.getElementById("messages");
+    chat.scrollTop = chat.scrollHeight;
+}
+</script>
+
 </body>
 </html>
